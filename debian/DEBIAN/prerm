@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Останавливаем и отключаем сервис
+systemctl stop todoist-bot.service
+systemctl disable todoist-bot.service
+
+exit 0 

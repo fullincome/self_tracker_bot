@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# Создаем виртуальное окружение и устанавливаем зависимости
+cd /usr/local/bin/todoist-bot
+python3 -m venv myenv
+source myenv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# Проверяем наличие .env файла и создаем шаблон, если его нет
+if [ ! -f /usr/local/bin/todoist-bot/.env ]; then
+    cat > /usr/local/bin/todoist-bot/.env <<EOF
+TELEGRAM_TOKEN=your_telegram_token
+TODOIST_TOKEN=your_todoist_token
+YANDEX_SPEECHKIT_TOKEN=your_yandex_token
+TELEGRAM_USER_ID=your_telegram_user_id
+EOF
+    echo "ВНИМАНИЕ: Заполните файл /usr/local/bin/todoist-bot/.env своими токенами!"
+fi
+
+# Устанавливаем правильные права
+chown -R root:root /usr/local/bin/todoist-bot
+chmod -R 755 /usr/local/bin/todoist-bot
+chown -R root:root /var/log/todoist-bot
+chmod -R 755 /var/log/todoist-bot
+
+# Перезагружаем systemd и включаем сервис
+systemctl daemon-reload
+systemctl enable todoist-bot.service
+systemctl start todoist-bot.service
+
+exit 0 
