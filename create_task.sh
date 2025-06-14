@@ -5,30 +5,39 @@ show_usage() {
     echo "Usage: $0 [OPTIONS] 'Task text'"
     echo ""
     echo "Options:"
-    echo "  -t, --token-path PATH    Path to the directory containing .todoist_token file"
-    echo "                          (default: \$HOME)"
+    echo "  -s, --service SERVICE    Service to use: todoist or yougile (default: todoist)"
+    echo "  -t, --token-path PATH    Path to the directory containing .todoist_token и .yougile_token"
+    echo "                          (default: $HOME)"
     echo "  -v, --venv-path PATH     Path to Python virtual environment"
     echo "                          (default: ./myenv)"
+    echo "  -l, --location LOCATION  Yougile column id (YOUGILE_DEFAULT_LOCATION) для yougile"
     echo "  -h, --help              Show this help message"
     echo ""
     echo "Environment variables:"
     echo "  TODOIST_TOKEN_PATH      Alternative way to specify token directory path"
     echo "  VENV_PATH              Alternative way to specify virtual environment path"
+    echo "  YOUGILE_DEFAULT_LOCATION  Default Yougile column id (обязателен для yougile, можно через -l)"
     echo ""
     echo "Examples:"
     echo "  $0 'Buy groceries'"
-    echo "  $0 -t /path/to/tokens 'Call mom'"
-    echo "  $0 --token-path /home/user --venv-path /opt/myenv 'Meeting at 3pm'"
+    echo "  $0 -s yougile -l <column_id> 'Call mom'"
+    echo "  $0 --service todoist -t /path/to/tokens 'Meeting at 3pm'"
 }
 
 # Значения по умолчанию
+SERVICE="todoist"
 TOKEN_PATH="${TODOIST_TOKEN_PATH:-$HOME}"
 VENV_PATH="${VENV_PATH:-./myenv}"
+YOUGILE_LOCATION=""
 TASK_TEXT=""
 
 # Парсинг аргументов командной строки
 while [[ $# -gt 0 ]]; do
     case $1 in
+        -s|--service)
+            SERVICE="$2"
+            shift 2
+            ;;
         -t|--token-path)
             TOKEN_PATH="$2"
             shift 2
@@ -37,16 +46,20 @@ while [[ $# -gt 0 ]]; do
             VENV_PATH="$2"
             shift 2
             ;;
+        -l|--location)
+            YOUGILE_LOCATION="$2"
+            shift 2
+            ;;
         -h|--help)
             show_usage
             exit 0
             ;;
-        -*)
+        -* )
             echo "Unknown option $1"
             show_usage
             exit 1
             ;;
-        *)
+        * )
             TASK_TEXT="$1"
             shift
             ;;
@@ -58,16 +71,6 @@ if [ -z "$TASK_TEXT" ]; then
     echo "Error: Task text is required"
     echo ""
     show_usage
-    exit 1
-fi
-
-# Формируем полный путь к файлу токена
-TOKEN_FILE="$TOKEN_PATH/.todoist_token"
-
-# Проверяем существование файла с токеном
-if [ ! -f "$TOKEN_FILE" ]; then
-    echo "Error: Token file not found at $TOKEN_FILE"
-    echo "Please make sure the .todoist_token file exists in the specified directory"
     exit 1
 fi
 
@@ -83,25 +86,65 @@ fi
 echo "Activating virtual environment: $VENV_PATH"
 source "$VENV_ACTIVATE"
 
-# Читаем токен из файла
-echo "Reading token from: $TOKEN_FILE"
-TODOIST_TOKEN=$(cat "$TOKEN_FILE")
-
-# Проверяем, что токен не пустой
-if [ -z "$TODOIST_TOKEN" ]; then
-    echo "Error: Token file is empty"
+if [ "$SERVICE" = "todoist" ]; then
+    # Формируем полный путь к файлу токена
+    TOKEN_FILE="$TOKEN_PATH/todoist_token"
+    if [ ! -f "$TOKEN_FILE" ]; then
+        echo "Error: Token file not found at $TOKEN_FILE"
+        echo "Please make sure the .todoist_token file exists in the specified directory"
+        deactivate
+        exit 1
+    fi
+    # Читаем токен из файла
+    echo "Reading token from: $TOKEN_FILE"
+    TODOIST_TOKEN=$(cat "$TOKEN_FILE")
+    if [ -z "$TODOIST_TOKEN" ]; then
+        echo "Error: Token file is empty"
+        deactivate
+        exit 1
+    fi
+    export TODOIST_TOKEN
+    echo "Creating task in Todoist: $TASK_TEXT"
+    python3 todoist_api.py "$TASK_TEXT"
+    EXIT_CODE=$?
+elif [ "$SERVICE" = "yougile" ]; then
+    # Формируем путь к файлу токена
+    YOUGILE_TOKEN_FILE="$TOKEN_PATH/yougile_token"
+    if [ ! -f "$YOUGILE_TOKEN_FILE" ]; then
+        echo "Error: Yougile token file not found at $YOUGILE_TOKEN_FILE"
+        echo "Please make sure the yougile_token file exists in the specified directory"
+        deactivate
+        exit 1
+    fi
+    # Читаем токен из файла
+    echo "Reading token from: $YOUGILE_TOKEN_FILE"
+    YOUGILE_TOKEN=$(cat "$YOUGILE_TOKEN_FILE")
+    if [ -z "$YOUGILE_TOKEN" ]; then
+        echo "Error: Yougile token file is empty"
+        deactivate
+        exit 1
+    fi
+    export YOUGILE_TOKEN
+    # Устанавливаем YOUGILE_LOCATION из аргумента, переменной или файла
+    if [ -n "$YOUGILE_LOCATION" ]; then
+        export YOUGILE_LOCATION="$YOUGILE_LOCATION"
+    elif [ -z "$YOUGILE_LOCATION" ] && [ -f "$TOKEN_PATH/yougile_location" ]; then
+        YOUGILE_LOCATION=$(cat "$TOKEN_PATH/yougile_location")
+        export YOUGILE_LOCATION
+    fi
+    if [ -z "$YOUGILE_LOCATION" ]; then
+        echo "Error: YOUGILE_LOCATION environment variable is not set (и не передан через -l, и нет файла yougile_location)"
+        deactivate
+        exit 1
+    fi
+    echo "Creating task in Yougile: $TASK_TEXT"
+    python3 yougile_api.py "$TASK_TEXT"
+    EXIT_CODE=$?
+else
+    echo "Error: Unknown service '$SERVICE'. Use 'todoist' or 'yougile'."
+    deactivate
     exit 1
 fi
-
-# Экспортируем токен в переменную окружения
-export TODOIST_TOKEN
-
-# Запускаем Python скрипт с параметром
-echo "Creating task: $TASK_TEXT"
-python3 todoist_api.py "$TASK_TEXT"
-
-# Сохраняем код выхода Python скрипта
-EXIT_CODE=$?
 
 # Деактивируем виртуальное окружение
 deactivate

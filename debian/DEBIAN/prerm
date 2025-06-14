@@ -1,7 +1,9 @@
 #!/bin/bash
 
+PKGNAME="__PKGNAME__"
+
 # Останавливаем и отключаем сервис
-systemctl stop todoist-bot.service
-systemctl disable todoist-bot.service
+systemctl stop $PKGNAME.service
+systemctl disable $PKGNAME.service
 
 exit 0 

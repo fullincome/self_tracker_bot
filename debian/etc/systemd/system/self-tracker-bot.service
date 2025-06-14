@@ -1,0 +1,18 @@
+[Unit]
+Description=__PKGNAME__ Telegram Bot Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/usr/local/bin/__PKGNAME__
+Environment=PATH=/usr/local/bin/__PKGNAME__/myenv/bin:/usr/bin:/usr/local/bin:$PATH
+EnvironmentFile=/usr/local/bin/__PKGNAME__/.env
+ExecStart=/usr/local/bin/__PKGNAME__/myenv/bin/python /usr/local/bin/__PKGNAME__/self_tracker_bot.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/__PKGNAME__/bot.log
+StandardError=append:/var/log/__PKGNAME__/bot.error.log
+
+[Install]
+WantedBy=multi-user.target

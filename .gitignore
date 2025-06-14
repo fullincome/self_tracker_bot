@@ -43,7 +43,7 @@ logs/
 config.local.py
 *.token
 .todoist_token
-.telegram_todoisttask_token
+.telegram_token
 .yandex_speech_kit_recognizer_token
 
 # Кэш

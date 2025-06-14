@@ -1,32 +1,39 @@
 #!/bin/bash
 
+PKGNAME="__PKGNAME__"
+
 # Создаем виртуальное окружение и устанавливаем зависимости
-cd /usr/local/bin/todoist-bot
+cd /usr/local/bin/$PKGNAME
 python3 -m venv myenv
 source myenv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
 # Проверяем наличие .env файла и создаем шаблон, если его нет
-if [ ! -f /usr/local/bin/todoist-bot/.env ]; then
-    cat > /usr/local/bin/todoist-bot/.env <<EOF
+if [ ! -f /usr/local/bin/$PKGNAME/.env ]; then
+    cat > /usr/local/bin/$PKGNAME/.env <<EOF
 TELEGRAM_TOKEN=your_telegram_token
-TODOIST_TOKEN=your_todoist_token
+TODOIST_TOKEN=your_todoist_token   # (только если используете Todoist)
+YOUGILE_TOKEN=your_yougile_token   # (только если используете Yougile)
+YOUGILE_LOCATION=your_yougile_column_id   # (только если используете Yougile)
 YANDEX_SPEECHKIT_TOKEN=your_yandex_token
 TELEGRAM_USER_ID=your_telegram_user_id
+SERVICE=todoist   # или yougile
 EOF
-    echo "ВНИМАНИЕ: Заполните файл /usr/local/bin/todoist-bot/.env своими токенами!"
+    echo "ВНИМАНИЕ: Заполните файл /usr/local/bin/$PKGNAME/.env своими токенами!\n\
+  - Для Todoist: TELEGRAM_TOKEN, TODOIST_TOKEN, YANDEX_SPEECHKIT_TOKEN, TELEGRAM_USER_ID, SERVICE=todoist\n\
+  - Для Yougile: TELEGRAM_TOKEN, YOUGILE_TOKEN, YOUGILE_LOCATION, YANDEX_SPEECHKIT_TOKEN, TELEGRAM_USER_ID, SERVICE=yougile"
 fi
 
 # Устанавливаем правильные права
-chown -R root:root /usr/local/bin/todoist-bot
-chmod -R 755 /usr/local/bin/todoist-bot
-chown -R root:root /var/log/todoist-bot
-chmod -R 755 /var/log/todoist-bot
+chown -R root:root /usr/local/bin/$PKGNAME
+chmod -R 755 /usr/local/bin/$PKGNAME
+chown -R root:root /var/log/$PKGNAME
+chmod -R 755 /var/log/$PKGNAME
 
 # Перезагружаем systemd и включаем сервис
 systemctl daemon-reload
-systemctl enable todoist-bot.service
-systemctl start todoist-bot.service
+systemctl enable $PKGNAME.service
+systemctl start $PKGNAME.service
 
 exit 0 

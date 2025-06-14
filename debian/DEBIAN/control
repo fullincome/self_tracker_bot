@@ -1,11 +1,11 @@
-Package: todoist-bot
+Package: __PKGNAME__
 Version: 1.0.0
 Section: utils
 Priority: optional
 Architecture: all
 Depends: python3 (>= 3.8), python3-venv, ffmpeg
 Maintainer: Your Name <your.email@example.com>
-Description: Todoist Telegram Bot
- This package installs and configures the Todoist Telegram Bot
+Description: __PKGNAME__ Telegram Bot
+ This package installs and configures the __PKGNAME__ Telegram Bot
  as a system service with automatic startup and logging.
 
