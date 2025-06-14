@@ -115,13 +115,13 @@ def main():
 
     # Читаем токены YandexGPT
     yandex_gpt_apikey = os.getenv('YANDEX_GPT_APIKEY')
-    yandex_gpt_folder_id = os.getenv('YANDEX_GPT_FOLDER_ID')
-    if not yandex_gpt_apikey or not yandex_gpt_folder_id:
-        print("Error: YANDEX_GPT_APIKEY and YANDEX_GPT_FOLDER_ID must be set in environment variables")
+    yandex_folder_id = os.getenv('YANDEX_FOLDER_ID')
+    if not yandex_gpt_apikey or not yandex_folder_id:
+        print("Error: YANDEX_GPT_APIKEY and YANDEX_FOLDER_ID must be set in environment variables")
         sys.exit(1)
 
     # Инициализируем LLM
-    gpt = YandexGPT(yandex_gpt_apikey, yandex_gpt_folder_id)
+    gpt = YandexGPT(yandex_gpt_apikey, yandex_folder_id)
 
     # Извлекаем параметры задачи через LLM
     params = gpt.extract_todoist_task_params(task_text)

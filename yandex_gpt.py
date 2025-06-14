@@ -2,6 +2,7 @@ import requests
 from typing import Dict, Any
 import json
 import re
+import logging
 
 class YandexGPT:
     def __init__(self, apikey: str, folder_id: str):
@@ -52,4 +53,35 @@ class YandexGPT:
                 return json.loads(match.group(0))
             except Exception:
                 pass
-        return {"content": text.strip()} 
+        return {"content": text.strip()}
+
+    def extract_yougile_task_params(self, text: str) -> Dict[str, Any]:
+        prompt = f"""
+Ты — помощник, который извлекает параметры для создания задачи в Yougile из пользовательского текста.
+Верни результат в формате JSON с ключами:
+title (текст задачи, если срок указан, то добавь его в квадратные скобки, например, "Сделать отчёт [завтра]"),
+description (если есть)
+
+Пример:
+Вход: Срочно сделать отчёт до 14.06.2025
+Выход: {{"title": "Сделать отчёт [завтра]", "description": "подробный отчёт"}}
+
+Вход: Позвонить клиенту завтра
+Выход: {{"title": "Позвонить клиенту [завтра]"}}
+
+Вход: Купить хлеб
+Выход: {{"title": "Купить хлеб"}}
+
+По аналогии разбери следующий вход.
+
+Вход: {text}
+Выход:
+"""
+        answer = self.ask(prompt)
+        match = re.search(r'\{.*\}', answer, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(0))
+            except Exception:
+                pass
+        return {"title": text.strip()} 
