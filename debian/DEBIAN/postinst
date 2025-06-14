@@ -17,11 +17,13 @@ TODOIST_TOKEN=your_todoist_token   # (только если использует
 YOUGILE_TOKEN=your_yougile_token   # (только если используете Yougile)
 YOUGILE_LOCATION=your_yougile_column_id   # (только если используете Yougile)
 YANDEX_SPEECHKIT_TOKEN=your_yandex_token
+YANDEX_GPT_APIKEY=your_yandex_gpt_apikey   # (только если используете Todoist)
+YANDEX_GPT_FOLDER_ID=your_yandex_gpt_folder_id   # (только если используете Todoist)
 TELEGRAM_USER_ID=your_telegram_user_id
 SERVICE=todoist   # или yougile
 EOF
     echo "ВНИМАНИЕ: Заполните файл /usr/local/bin/$PKGNAME/.env своими токенами!\n\
-  - Для Todoist: TELEGRAM_TOKEN, TODOIST_TOKEN, YANDEX_SPEECHKIT_TOKEN, TELEGRAM_USER_ID, SERVICE=todoist\n\
+  - Для Todoist: TELEGRAM_TOKEN, TODOIST_TOKEN, YANDEX_SPEECHKIT_TOKEN, YANDEX_GPT_APIKEY, YANDEX_GPT_FOLDER_ID, TELEGRAM_USER_ID, SERVICE=todoist\n\
   - Для Yougile: TELEGRAM_TOKEN, YOUGILE_TOKEN, YOUGILE_LOCATION, YANDEX_SPEECHKIT_TOKEN, TELEGRAM_USER_ID, SERVICE=yougile"
 fi
 

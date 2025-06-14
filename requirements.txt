@@ -6,3 +6,5 @@ pydub==0.25.1
 SpeechRecognition==3.10.1
 # Для поддержки yougile_api
 pydantic==1.10.14
+# Для работы с YandexGPT
+requests

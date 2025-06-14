@@ -41,6 +41,7 @@ cp self_tracker_bot.py $BUILD_DIR/debian/usr/local/bin/$PACKAGE_NAME/
 cp todoist_api.py $BUILD_DIR/debian/usr/local/bin/$PACKAGE_NAME/
 cp requirements.txt $BUILD_DIR/debian/usr/local/bin/$PACKAGE_NAME/
 cp yougile_api.py $BUILD_DIR/debian/usr/local/bin/$PACKAGE_NAME/
+cp yandex_gpt.py $BUILD_DIR/debian/usr/local/bin/$PACKAGE_NAME/
 
 # Делаем скрипты исполняемыми
 chmod 755 $BUILD_DIR/debian/DEBIAN/postinst

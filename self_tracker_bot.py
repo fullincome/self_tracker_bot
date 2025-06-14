@@ -7,6 +7,8 @@ from yougile_api import YougileAPI
 from speechkit import model_repository, configure_credentials, creds
 from speechkit.stt import AudioProcessingType
 import io
+# Импортируем класс YandexGPT
+from yandex_gpt import YandexGPT
 
 # Настройка логирования
 logging.basicConfig(
@@ -20,6 +22,8 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TODOIST_TOKEN = os.getenv('TODOIST_TOKEN')
 YANDEX_SPEECHKIT_TOKEN = os.getenv('YANDEX_SPEECHKIT_TOKEN')
 YOUGILE_TOKEN = os.getenv('YOUGILE_TOKEN')
+YANDEX_GPT_APIKEY = os.getenv('YANDEX_GPT_APIKEY')
+YANDEX_GPT_FOLDER_ID = os.getenv('YANDEX_GPT_FOLDER_ID')
 ALLOWED_USER_ID = int(os.getenv('TELEGRAM_USER_ID', '0'))  # ID пользователя, которому разрешен доступ
 
 # Получаем сервис из переменной окружения или по наличию токена
@@ -41,6 +45,10 @@ if SERVICE == 'todoist':
     if not TODOIST_TOKEN:
         raise ValueError("TODOIST_TOKEN must be set in environment variables for todoist mode")
     client = TodoistAPI(TODOIST_TOKEN)
+    # Инициализируем YandexGPT только если работаем с todoist
+    if not YANDEX_GPT_APIKEY or not YANDEX_GPT_FOLDER_ID:
+        raise ValueError("YANDEX_GPT_APIKEY и YANDEX_GPT_FOLDER_ID должны быть заданы в переменных окружения для работы с LLM")
+    gpt = YandexGPT(YANDEX_GPT_APIKEY, YANDEX_GPT_FOLDER_ID)
 elif SERVICE == 'yougile':
     if not YOUGILE_TOKEN:
         raise ValueError("YOUGILE_TOKEN must be set in environment variables for yougile mode")
@@ -48,6 +56,7 @@ elif SERVICE == 'yougile':
     if not yougile_location:
         raise ValueError("YOUGILE_LOCATION must be set in environment variables for yougile mode")
     client = YougileAPI(YOUGILE_TOKEN, default_location=yougile_location)
+    gpt = None
 else:
     raise ValueError("Unknown SERVICE value. Must be 'todoist' or 'yougile'.")
 
@@ -98,21 +107,17 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик текстовых сообщений"""
     if not await check_user(update):
         return
-    try:
-        if SERVICE == 'todoist':
-            task = client.create_task(
-                content=update.message.text,
-                priority=4
-            )
-            await update.message.reply_text(f"✅ Задача создана в Todoist: {task['content']}")
-        elif SERVICE == 'yougile':
-            task = client.create_task(
-                title=update.message.text
-            )
-            await update.message.reply_text(f"✅ Задача создана в Yougile: {update.message.text}")
-    except Exception as e:
-        logger.error(f"Error creating task: {e}")
-        await update.message.reply_text("❌ Не удалось создать задачу. Попробуйте позже.")
+    text = update.message.text.strip()
+    if SERVICE == 'todoist':
+        # Извлекаем параметры задачи через LLM
+        params = gpt.extract_todoist_task_params(text)
+        task = client.create_task(**params)
+        await update.message.reply_text(f"✅ Задача создана: {task['content']}")
+    elif SERVICE == 'yougile':
+        task = client.create_task(title=text)
+        await update.message.reply_text(f"✅ Задача создана в Yougile: {text}")
+    else:
+        await update.message.reply_text("❌ Сервис не настроен. Обратитесь к администратору.")
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик голосовых сообщений"""
@@ -160,18 +165,15 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         os.remove(temp_file)
         if not text:
             raise ValueError("Не удалось распознать речь ни одной из моделей")
-        # Создаем задачу из распознанного текста
         if SERVICE == 'todoist':
-            task = client.create_task(
-                content=text,
-                priority=4
-            )
+            params = gpt.extract_todoist_task_params(text)
+            task = client.create_task(**params)
             await update.message.reply_text(f"✅ Задача создана из голосового сообщения: {task['content']}")
         elif SERVICE == 'yougile':
-            task = client.create_task(
-                title=text
-            )
+            task = client.create_task(title=text)
             await update.message.reply_text(f"✅ Задача создана в Yougile из голосового сообщения: {text}")
+        else:
+            await update.message.reply_text("❌ Сервис не настроен. Обратитесь к администратору.")
     except Exception as e:
         logger.error(f"Error processing voice message: {e}")
         await update.message.reply_text("❌ Не удалось обработать голосовое сообщение. Попробуйте позже.")

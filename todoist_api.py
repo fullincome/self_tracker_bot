@@ -3,6 +3,8 @@ import os
 import sys
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+# Импортируем YandexGPT
+from yandex_gpt import YandexGPT
 
 class TodoistAPI:
     def __init__(self, api_token: str):
@@ -111,15 +113,25 @@ def main():
     # Получаем текст задачи из аргументов командной строки
     task_text = sys.argv[1]
 
+    # Читаем токены YandexGPT
+    yandex_gpt_apikey = os.getenv('YANDEX_GPT_APIKEY')
+    yandex_gpt_folder_id = os.getenv('YANDEX_GPT_FOLDER_ID')
+    if not yandex_gpt_apikey or not yandex_gpt_folder_id:
+        print("Error: YANDEX_GPT_APIKEY and YANDEX_GPT_FOLDER_ID must be set in environment variables")
+        sys.exit(1)
+
+    # Инициализируем LLM
+    gpt = YandexGPT(yandex_gpt_apikey, yandex_gpt_folder_id)
+
+    # Извлекаем параметры задачи через LLM
+    params = gpt.extract_todoist_task_params(task_text)
+
     # Create API client
     todoist = TodoistAPI(api_token)
     
     # Create a task
     try:
-        task = todoist.create_task(
-            content=task_text,
-            priority=4  # Можно настроить приоритет по умолчанию
-        )
+        task = todoist.create_task(**params)
         print(f"Created task: {task['content']}")
     except Exception as e:
         print(f"Error: {e}")

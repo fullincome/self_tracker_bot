@@ -104,6 +104,33 @@ if [ "$SERVICE" = "todoist" ]; then
         exit 1
     fi
     export TODOIST_TOKEN
+    # Читаем токены YandexGPT
+    YANDEX_GPT_APIKEY_FILE="$TOKEN_PATH/yandex_gpt_apikey"
+    YANDEX_GPT_FOLDER_ID_FILE="$TOKEN_PATH/yandex_gpt_folder_id"
+    if [ ! -f "$YANDEX_GPT_APIKEY_FILE" ]; then
+        echo "Error: YandexGPT IAM token file not found at $YANDEX_GPT_APIKEY_FILE"
+        deactivate
+        exit 1
+    fi
+    if [ ! -f "$YANDEX_GPT_FOLDER_ID_FILE" ]; then
+        echo "Error: YandexGPT folder_id file not found at $YANDEX_GPT_FOLDER_ID_FILE"
+        deactivate
+        exit 1
+    fi
+    YANDEX_GPT_APIKEY=$(cat "$YANDEX_GPT_APIKEY_FILE")
+    YANDEX_GPT_FOLDER_ID=$(cat "$YANDEX_GPT_FOLDER_ID_FILE")
+    if [ -z "$YANDEX_GPT_APIKEY" ]; then
+        echo "Error: YandexGPT IAM token file is empty"
+        deactivate
+        exit 1
+    fi
+    if [ -z "$YANDEX_GPT_FOLDER_ID" ]; then
+        echo "Error: YandexGPT folder_id file is empty"
+        deactivate
+        exit 1
+    fi
+    export YANDEX_GPT_APIKEY
+    export YANDEX_GPT_FOLDER_ID
     echo "Creating task in Todoist: $TASK_TEXT"
     python3 todoist_api.py "$TASK_TEXT"
     EXIT_CODE=$?
