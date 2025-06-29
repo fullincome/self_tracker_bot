@@ -3,6 +3,7 @@ import os
 import sys
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+import logging
 # Импортируем YandexGPT
 from yandex_gpt import YandexGPT
 
@@ -95,6 +96,18 @@ class TodoistAPI:
             response.raise_for_status()  # Raise an exception for bad status codes
             return response.json()
         except requests.exceptions.RequestException as e:
+            # Retry logic: if due_string was present, try again without it
+            if due_string is not None:
+                logging.warning(f"Retrying Todoist task creation without due_string due to error: {e}")
+                task_data.pop("due_string", None)
+                try:
+                    response = requests.post(endpoint, headers=self.headers, json=task_data)
+                    response.raise_for_status()
+                    result = response.json()
+                    result["_due_string_failed"] = True
+                    return result
+                except requests.exceptions.RequestException as e2:
+                    raise Exception(f"Failed to create task (even without due_string): {str(e2)}. Original error: {str(e)}")
             raise Exception(f"Failed to create task: {str(e)}")
 
 def main():

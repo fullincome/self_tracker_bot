@@ -34,7 +34,13 @@ class YandexGPT:
     def extract_todoist_task_params(self, text: str) -> Dict[str, Any]:
         prompt = f"""
 Ты — помощник, который извлекает параметры для создания задачи в Todoist из пользовательского текста. 
-Верни результат в формате JSON с ключами: content (текст задачи), due_string (срок, если есть), priority (1-4, если есть), labels (список, если есть). Если параметр не найден — не включай его в JSON.
+Верни результат в формате JSON с ключами:
+content (текст задачи),
+due_string (срок, если есть; может быть в формате "завтра", "сегодня", "послезавтра" и или в формате даты, например, "2025-06-30"),
+priority (1-4, если есть),
+labels (список, если есть).
+
+Если параметр не найден — не включай его в JSON. Но content заполняй всегда! Даже если понять смысловую часть задачи не просто, небольшой текст всегда лучше, чем ничего.
 
 Пример:
 Вход: Завтра купить молоко, важно
@@ -50,21 +56,28 @@ class YandexGPT:
         match = re.search(r'\{.*\}', answer, re.DOTALL)
         if match:
             try:
-                return json.loads(match.group(0))
+                params = json.loads(match.group(0))
+                params['description'] = text.strip()
+                # Проверяем, что есть ключ 'content'
+                if 'content' not in params:
+                    params['content'] = "Новая задача"
+                return params
             except Exception:
                 pass
-        return {"content": text.strip()}
+        # Если не удалось распарсить JSON или нет ключа content, возвращаем дефолт
+        return {"content": "Новая задача", "description": text.strip()}
 
     def extract_yougile_task_params(self, text: str) -> Dict[str, Any]:
         prompt = f"""
 Ты — помощник, который извлекает параметры для создания задачи в Yougile из пользовательского текста.
 Верни результат в формате JSON с ключами:
-title (текст задачи, если срок указан, то добавь его в квадратные скобки, например, "Сделать отчёт [завтра]"),
-description (если есть)
+title (текст задачи; если срок указан, то добавь его в квадратные скобки, например, "Сделать отчёт [завтра]")
+
+Даже если понять смысловую часть задачи и выделить title не просто, небольшой текст в нем вернуть всегда лучше, чем ничего.
 
 Пример:
 Вход: Срочно сделать отчёт до 14.06.2025
-Выход: {{"title": "Сделать отчёт [завтра]", "description": "подробный отчёт"}}
+Выход: {{"title": "Сделать отчёт [завтра]"}}
 
 Вход: Позвонить клиенту завтра
 Выход: {{"title": "Позвонить клиенту [завтра]"}}
@@ -81,7 +94,11 @@ description (если есть)
         match = re.search(r'\{.*\}', answer, re.DOTALL)
         if match:
             try:
-                return json.loads(match.group(0))
+                params = json.loads(match.group(0))
+                params['description'] = text.strip()
+                if 'title' not in params:
+                    params['title'] = "Новая задача"
+                return params
             except Exception:
                 pass
-        return {"title": text.strip()} 
+        return {"title": "Новая задача", "description": text.strip()} 
