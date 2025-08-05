@@ -21,6 +21,8 @@ YANDEX_GPT_APIKEY=your_yandex_gpt_apikey
 SERVICE=todoist   # или yougile
 
 TODOIST_TOKEN=your_todoist_token   # (только если используете Todoist)
+TODOIST_DEFAULT_PROJECT_ID=your_todoist_project_id   # (только если используете Todoist)
+TODOIST_DEFAULT_SECTION_ID=your_todoist_section_id   # (только если используете Todoist)
 
 YOUGILE_TOKEN=your_yougile_token   # (только если используете Yougile)
 YOUGILE_LOCATION=your_yougile_column_id   # (только если используете Yougile)

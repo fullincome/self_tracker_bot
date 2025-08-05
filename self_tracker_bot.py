@@ -44,7 +44,25 @@ gpt = None
 if SERVICE == 'todoist':
     if not TODOIST_TOKEN:
         raise ValueError("TODOIST_TOKEN must be set in environment variables for todoist mode")
-    client = TodoistAPI(TODOIST_TOKEN)
+    # Получаем проект по умолчанию из переменной окружения
+    default_project_id = os.getenv('TODOIST_DEFAULT_PROJECT_ID')
+    if default_project_id:
+        try:
+            default_project_id = int(default_project_id)
+        except ValueError:
+            logging.warning(f"Invalid TODOIST_DEFAULT_PROJECT_ID: {default_project_id}. Using Inbox.")
+            default_project_id = None
+    
+    # Получаем секцию по умолчанию из переменной окружения
+    default_section_id = os.getenv('TODOIST_DEFAULT_SECTION_ID')
+    if default_section_id:
+        try:
+            default_section_id = int(default_section_id)
+        except ValueError:
+            logging.warning(f"Invalid TODOIST_DEFAULT_SECTION_ID: {default_section_id}. Using default section.")
+            default_section_id = None
+    
+    client = TodoistAPI(TODOIST_TOKEN, default_project_id=default_project_id, default_section_id=default_section_id)
 elif SERVICE == 'yougile':
     if not YOUGILE_TOKEN:
         raise ValueError("YOUGILE_TOKEN must be set in environment variables for yougile mode")
@@ -58,7 +76,12 @@ else:
 # Инициализируем YandexGPT для любого сервиса
 if not YANDEX_GPT_APIKEY or not YANDEX_FOLDER_ID:
     raise ValueError("YANDEX_GPT_APIKEY и YANDEX_FOLDER_ID должны быть заданы в переменных окружения для работы с LLM")
-gpt = YandexGPT(YANDEX_GPT_APIKEY, YANDEX_FOLDER_ID)
+
+# Передаем клиент в YandexGPT для Todoist
+if SERVICE == 'todoist':
+    gpt = YandexGPT(YANDEX_GPT_APIKEY, YANDEX_FOLDER_ID, todoist_client=client)
+else:
+    gpt = YandexGPT(YANDEX_GPT_APIKEY, YANDEX_FOLDER_ID)
 
 def recognize_speech_yandex(audio_path, api_key, folder_id, lang="ru-RU"):
     """
@@ -130,10 +153,23 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     text = update.message.text.strip()
     if SERVICE == 'todoist':
-        # Извлекаем параметры задачи через LLM
+        # Извлекаем параметры задачи через LLM (уже с project_id и section_id)
         params = gpt.extract_todoist_task_params(text)
+        
+        # Формируем информационное сообщение
+        project_info = ""
+        if 'project_id' in params:
+            project = client.get_project_by_id(params['project_id'])
+            if project:
+                project_info = f" в проекте '{project.get('name', 'Неизвестный проект')}'"
+                
+                if 'section_id' in params:
+                    section = client.get_section_by_id(params['section_id'], params['project_id'])
+                    if section:
+                        project_info += f" в колонке '{section.get('name', 'Неизвестная колонка')}'"
+        
         task = client.create_task(**params)
-        await update.message.reply_text(f"✅ Задача создана: {task['content']}")
+        await update.message.reply_text(f"✅ Задача создана{project_info}: {task['content']}")
     elif SERVICE == 'yougile':
         params = gpt.extract_yougile_task_params(text)
         task = client.create_task(**params)
@@ -164,8 +200,21 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             raise ValueError("Не удалось распознать речь")
         if SERVICE == 'todoist':
             params = gpt.extract_todoist_task_params(text)
+            
+            # Формируем информационное сообщение
+            project_info = ""
+            if 'project_id' in params:
+                project = client.get_project_by_id(params['project_id'])
+                if project:
+                    project_info = f" в проекте '{project.get('name', 'Неизвестный проект')}'"
+                    
+                    if 'section_id' in params:
+                        section = client.get_section_by_id(params['section_id'], params['project_id'])
+                        if section:
+                            project_info += f" в колонке '{section.get('name', 'Неизвестная колонка')}'"
+            
             task = client.create_task(**params)
-            await update.message.reply_text(f"✅ Задача создана из голосового сообщения: {task['content']}")
+            await update.message.reply_text(f"✅ Задача создана из голосового сообщения{project_info}: {task['content']}")
         elif SERVICE == 'yougile':
             params = gpt.extract_yougile_task_params(text)
             task = client.create_task(**params)

@@ -8,14 +8,18 @@ import logging
 from yandex_gpt import YandexGPT
 
 class TodoistAPI:
-    def __init__(self, api_token: str):
+    def __init__(self, api_token: str, default_project_id: Optional[int] = None, default_section_id: Optional[int] = None):
         """
         Initialize Todoist API client
         
         Args:
             api_token (str): Your Todoist API token
+            default_project_id (int, optional): Default project ID for new tasks
+            default_section_id (int, optional): Default section ID for new tasks
         """
         self.api_token = api_token
+        self.default_project_id = default_project_id
+        self.default_section_id = default_section_id
         self.base_url = "https://api.todoist.com/rest/v2"
         self.headers = {
             "Authorization": f"Bearer {self.api_token}",
@@ -70,10 +74,16 @@ class TodoistAPI:
         # Add optional parameters if they are provided
         if description is not None:
             task_data["description"] = description
-        if project_id is not None:
-            task_data["project_id"] = project_id
-        if section_id is not None:
-            task_data["section_id"] = section_id
+        
+        # Use provided project_id, then default_project_id, then None (Inbox)
+        final_project_id = project_id if project_id is not None else self.default_project_id
+        if final_project_id is not None:
+            task_data["project_id"] = final_project_id
+            
+        # Use provided section_id, then default_section_id (only if project is specified)
+        final_section_id = section_id if section_id is not None else self.default_section_id
+        if final_section_id is not None and final_project_id is not None:
+            task_data["section_id"] = final_section_id
         if parent_id is not None:
             task_data["parent_id"] = parent_id
         if order is not None:
@@ -110,6 +120,118 @@ class TodoistAPI:
                     raise Exception(f"Failed to create task (even without due_string): {str(e2)}. Original error: {str(e)}")
             raise Exception(f"Failed to create task: {str(e)}")
 
+    def get_projects(self) -> List[Dict[str, Any]]:
+        """
+        Get all projects from Todoist
+        
+        Returns:
+            List[Dict[str, Any]]: List of projects
+        """
+        endpoint = f"{self.base_url}/projects"
+        response = requests.get(endpoint, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+
+    def get_project_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+        """
+        Find project by name
+        
+        Args:
+            name (str): Project name to search for
+            
+        Returns:
+            Optional[Dict[str, Any]]: Project data if found, None otherwise
+        """
+        projects = self.get_projects()
+        for project in projects:
+            if project.get("name", "").lower() == name.lower():
+                return project
+        return None
+
+    def get_project_by_id(self, project_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Find project by ID
+        
+        Args:
+            project_id (int): Project ID to search for
+            
+        Returns:
+            Optional[Dict[str, Any]]: Project data if found, None otherwise
+        """
+        projects = self.get_projects()
+        for project in projects:
+            if project.get("id") == project_id:
+                return project
+        return None
+
+    def get_sections(self, project_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Get sections (columns) from Todoist
+        
+        Args:
+            project_id (int, optional): Project ID to get sections for. If None, returns all sections.
+            
+        Returns:
+            List[Dict[str, Any]]: List of sections
+        """
+        endpoint = f"{self.base_url}/sections"
+        params = {}
+        if project_id is not None:
+            params["project_id"] = project_id
+        
+        response = requests.get(endpoint, headers=self.headers, params=params)
+        response.raise_for_status()
+        return response.json()
+
+    def get_section_by_name(self, name: str, project_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """
+        Find section by name
+        
+        Args:
+            name (str): Section name to search for
+            project_id (int, optional): Project ID to search within
+            
+        Returns:
+            Optional[Dict[str, Any]]: Section data if found, None otherwise
+        """
+        sections = self.get_sections(project_id)
+        for section in sections:
+            if section.get("name", "").lower() == name.lower():
+                return section
+        return None
+
+    def get_section_by_id(self, section_id: int, project_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """
+        Find section by ID
+        
+        Args:
+            section_id (int): Section ID to search for
+            project_id (int, optional): Project ID to search within
+            
+        Returns:
+            Optional[Dict[str, Any]]: Section data if found, None otherwise
+        """
+        sections = self.get_sections(project_id)
+        for section in sections:
+            if section.get("id") == section_id:
+                return section
+        return None
+
+    def get_default_section(self, project_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get the first section (default column) of a project
+        
+        Args:
+            project_id (int): Project ID
+            
+        Returns:
+            Optional[Dict[str, Any]]: First section data if found, None otherwise
+        """
+        sections = self.get_sections(project_id)
+        if sections:
+            return sections[0]  # Первая колонка обычно является дефолтной
+        return None
+
 def main():
     # Проверяем наличие токена в переменных окружения
     api_token = os.getenv('TODOIST_TOKEN')
@@ -133,14 +255,14 @@ def main():
         print("Error: YANDEX_GPT_APIKEY and YANDEX_FOLDER_ID must be set in environment variables")
         sys.exit(1)
 
-    # Инициализируем LLM
-    gpt = YandexGPT(yandex_gpt_apikey, yandex_folder_id)
+    # Create API client
+    todoist = TodoistAPI(api_token)
+    
+    # Инициализируем LLM с клиентом
+    gpt = YandexGPT(yandex_gpt_apikey, yandex_folder_id, todoist_client=todoist)
 
     # Извлекаем параметры задачи через LLM
     params = gpt.extract_todoist_task_params(task_text)
-
-    # Create API client
-    todoist = TodoistAPI(api_token)
     
     # Create a task
     try:
