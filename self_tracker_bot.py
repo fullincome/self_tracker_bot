@@ -44,23 +44,9 @@ gpt = None
 if SERVICE == 'todoist':
     if not TODOIST_TOKEN:
         raise ValueError("TODOIST_TOKEN must be set in environment variables for todoist mode")
-    # Получаем проект по умолчанию из переменной окружения
+    # Получаем проект и секцию по умолчанию из переменной окружения
     default_project_id = os.getenv('TODOIST_DEFAULT_PROJECT_ID')
-    if default_project_id:
-        try:
-            default_project_id = int(default_project_id)
-        except ValueError:
-            logging.warning(f"Invalid TODOIST_DEFAULT_PROJECT_ID: {default_project_id}. Using Inbox.")
-            default_project_id = None
-    
-    # Получаем секцию по умолчанию из переменной окружения
     default_section_id = os.getenv('TODOIST_DEFAULT_SECTION_ID')
-    if default_section_id:
-        try:
-            default_section_id = int(default_section_id)
-        except ValueError:
-            logging.warning(f"Invalid TODOIST_DEFAULT_SECTION_ID: {default_section_id}. Using default section.")
-            default_section_id = None
     
     client = TodoistAPI(TODOIST_TOKEN, default_project_id=default_project_id, default_section_id=default_section_id)
 elif SERVICE == 'yougile':

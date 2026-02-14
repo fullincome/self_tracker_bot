@@ -20,7 +20,7 @@ class TodoistAPI:
         self.api_token = api_token
         self.default_project_id = default_project_id
         self.default_section_id = default_section_id
-        self.base_url = "https://api.todoist.com/rest/v2"
+        self.base_url = "https://api.todoist.com/api/v1"
         self.headers = {
             "Authorization": f"Bearer {self.api_token}",
             "Content-Type": "application/json"
@@ -104,6 +104,7 @@ class TodoistAPI:
         try:
             response = requests.post(endpoint, headers=self.headers, json=task_data)
             response.raise_for_status()  # Raise an exception for bad status codes
+            print(response.json())
             return response.json()
         except requests.exceptions.RequestException as e:
             # Retry logic: if due_string was present, try again without it
@@ -130,7 +131,7 @@ class TodoistAPI:
         endpoint = f"{self.base_url}/projects"
         response = requests.get(endpoint, headers=self.headers)
         response.raise_for_status()
-        return response.json()
+        return response.json()['results']
 
     def get_project_by_name(self, name: str) -> Optional[Dict[str, Any]]:
         """
@@ -181,7 +182,7 @@ class TodoistAPI:
         
         response = requests.get(endpoint, headers=self.headers, params=params)
         response.raise_for_status()
-        return response.json()
+        return response.json()['results']
 
     def get_section_by_name(self, name: str, project_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """
@@ -256,7 +257,7 @@ def main():
         sys.exit(1)
 
     # Create API client
-    todoist = TodoistAPI(api_token)
+    todoist = TodoistAPI(api_token, os.getenv('TODOIST_DEFAULT_PROJECT_ID'), os.getenv('TODOIST_DEFAULT_SECTION_ID'))
     
     # Инициализируем LLM с клиентом
     gpt = YandexGPT(yandex_gpt_apikey, yandex_folder_id, todoist_client=todoist)
